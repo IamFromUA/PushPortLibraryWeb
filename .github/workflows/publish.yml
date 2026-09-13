@@ -35,4 +35,7 @@ jobs:
       - run: npm pack
       - run: node scripts/verify-package.mjs
       # Configure this exact repository, workflow filename and environment as an npm trusted publisher.
-      - run: npm publish pushport-web-sdk-${{ inputs.version }}.tgz --access public --provenance
+      - name: Publish package
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: npm publish "pushport-web-sdk-${RELEASE_VERSION}.tgz" --access public --provenance
