@@ -1,0 +1,32 @@
+{
+  "name": "@pushport/web-sdk",
+  "version": "0.0.1",
+  "description": "Native Web Push subscriptions and notifications for PushPort",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "Oleh Yurkov <support@pushport.dev>",
+  "homepage": "https://pushport.dev",
+  "repository": { "type": "git", "url": "git+https://github.com/IamFromUA/PushPortLibraryWeb.git" },
+  "bugs": { "url": "https://github.com/IamFromUA/PushPortLibraryWeb/issues" },
+  "keywords": ["pushport", "web-push", "notifications", "service-worker", "typescript"],
+  "engines": { "node": ">=22" },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "require": "./dist/index.cjs" },
+    "./service-worker": "./dist/pushport-sw.js",
+    "./browser": "./dist/pushport.js",
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "docs", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "SECURITY.md"],
+  "sideEffects": ["./dist/pushport-sw.js"],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "prepack": "npm run check && npm test"
+  },
+  "publishConfig": { "access": "public" },
+  "devDependencies": { "esbuild": "0.28.2", "typescript": "5.9.3", "fake-indexeddb": "6.2.5" }
+}

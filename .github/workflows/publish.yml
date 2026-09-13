@@ -1,0 +1,38 @@
+name: Publish npm
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing immutable release tag
+        required: true
+        default: '0.0.1'
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: npm-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.version }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+      - name: Check release identity
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node --input-type=module -e 'import p from "./package.json" with {type:"json"}; if (p.version !== process.env.RELEASE_VERSION) process.exit(1)'
+      - run: npm pack
+      - run: node scripts/verify-package.mjs
+      # Configure this exact repository, workflow filename and environment as an npm trusted publisher.
+      - run: npm publish pushport-web-sdk-${{ inputs.version }}.tgz --access public --provenance

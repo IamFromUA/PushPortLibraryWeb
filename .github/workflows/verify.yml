@@ -1,0 +1,26 @@
+name: Verify Web SDK
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm pack --ignore-scripts
+      - run: node scripts/verify-package.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-sdk-package
+          path: pushport-web-sdk-*.tgz
