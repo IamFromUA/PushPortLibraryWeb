@@ -2,7 +2,7 @@
 
 Native Web Push registration, locale/subscription synchronization and a service worker for notifications. TypeScript, framework independent, no runtime dependencies. ESM, CommonJS and a plain browser bundle are built from the same sources. SSR-safe import.
 
-**Version 0.0.1 вЂ” not published.** The new backend registration routes and VAPID provisioning are prepared locally. The production server and APNs/Web sender are not commissioned yet; real end-to-end sending is a separate integration step.
+**Version 0.0.1 is available as a public GitHub release archive.** npm registry publication is pending. The production backend supports VAPID provisioning and native Web Push delivery. On 2026-09-13, the unmodified release was tested in Chrome on Windows: registration, locale sync, unsubscribe/resubscribe, direct delivery and a scheduled localized campaign passed. Notification-click analytics and other browsers require separate verification.
 
 ## Install and initialize
 
