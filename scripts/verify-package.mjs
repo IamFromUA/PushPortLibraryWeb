@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os';
 import { resolve, join, dirname, relative, isAbsolute } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-const archive = resolve(process.argv[2] ?? 'pushport-web-sdk-0.0.1.tgz');
+const { readFile } = await import('node:fs/promises');
+const version = JSON.parse(await readFile('package.json', 'utf8')).version;
+const archive = resolve(process.argv[2] ?? `pushport-web-sdk-${version}.tgz`);
 const directory = mkdtempSync(join(tmpdir(), 'pushport-consumer-'));
 const run = (binary, args) => execFileSync(binary, args, { cwd: directory, stdio: 'inherit' });
 const installArgs = ['install', '--ignore-scripts', '--no-audit', '--no-fund', archive, 'typescript@5.9.3'];

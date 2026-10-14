@@ -2,17 +2,17 @@
 
 Native Web Push registration, locale/subscription synchronization and a service worker for notifications. TypeScript, framework independent, no runtime dependencies. ESM, CommonJS and a plain browser bundle are built from the same sources. SSR-safe import.
 
-**Version 0.0.1 is available as a public GitHub release archive.** npm registry publication is pending. The production backend supports VAPID provisioning and native Web Push delivery. On 2026-09-13, the unmodified release was tested in Chrome on Windows: registration, locale sync, unsubscribe/resubscribe, direct delivery and a scheduled localized campaign passed. Notification-click analytics and other browsers require separate verification.
+**Version 0.0.2 is available as a public GitHub release archive.** npm registry publication is pending. The production backend supports VAPID provisioning and native Web Push delivery. On 2026-09-13, the unmodified release was tested in Chrome on Windows: registration, locale sync, unsubscribe/resubscribe, direct delivery and a scheduled localized campaign passed. Notification-click analytics and other browsers require separate verification.
 
 ## Install and initialize
 
-From the GitHub 0.0.1 release archive:
+From the GitHub 0.0.2 release archive:
 
 ```sh
-npm install https://github.com/IamFromUA/PushPortLibraryWeb/releases/download/0.0.1/pushport-web-sdk-0.0.1.tgz
+npm install https://github.com/IamFromUA/PushPortLibraryWeb/releases/download/0.0.2/pushport-web-sdk-0.0.2.tgz
 ```
 
-After npm publication: `npm install @pushport/web-sdk@0.0.1`. Both methods install the same regular dependency and TypeScript declarations. Source builds use `npm ci && npm pack`.
+After npm publication: `npm install @pushport/web-sdk@0.0.2`. Both methods install the same regular dependency and TypeScript declarations. Source builds use `npm ci && npm pack`.
 
 Copy `node_modules/@pushport/web-sdk/dist/pushport-sw.js` to your site's **public/pushport-sw.js** so it is served as JavaScript from your own origin.
 
@@ -68,3 +68,5 @@ The example expects `<button id="enable-push">Enable notifications</button>` and
 The tests use synthetic subscriptions and fake IndexedDB/transport. They do not contact a push provider. Verify actual Chrome/Firefox/Safari behavior before release. [Protocol](docs/protocol.md), [architecture](docs/architecture.md), [publication](docs/publishing.md), [security](SECURITY.md).
 
 Apache-2.0 В· Oleh Yurkov В· support@pushport.dev
+
+See [diagnostics, consent, images and user profiles](docs/diagnostics.md) for version 0.0.2.

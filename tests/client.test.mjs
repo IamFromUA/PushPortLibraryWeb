@@ -91,3 +91,13 @@ test('foreign service worker is never replaced by initialization', async () => {
   await assert.rejects(initialize(), /existing service worker/);
   assert.equal(records.length, 0);
 });
+
+test('consent required before initialize prevents PushPort network and permission collection', async () => {
+  let requests = 0; const original = globalThis.fetch;
+  globalThis.fetch = async (...args) => { requests++; return original(...args); };
+  const client = await PushPort.initialize({ appId, consentRequired: true }); clients.push(client);
+  assert.equal(requests, 0); assert.equal(promptCount, 0);
+  await assert.rejects(client.requestPermission(), /consent/i);
+  await client.setConsentGiven(true); assert.ok(requests >= 2);
+  const count = requests; await client.setConsentGiven(false); await client.sync(); assert.equal(requests, count);
+});

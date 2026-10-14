@@ -1,6 +1,6 @@
 # Publishing
 
-Repository: https://github.com/IamFromUA/PushPortLibraryWeb. Package: `@pushport/web-sdk`, initial version `0.0.1`, Apache-2.0. Versions and release tags are immutable.
+Repository: https://github.com/IamFromUA/PushPortLibraryWeb. Package: `@pushport/web-sdk`, initial version `0.0.2`, Apache-2.0. Versions and release tags are immutable.
 
 ## Verification and release archive
 
@@ -8,7 +8,7 @@ Run `npm ci`, `npm pack`, then `node scripts/verify-package.mjs`. Packing checks
 
 ## First npm publication
 
-The account must own the `pushport` scope; a matching domain or GitHub organization alone does not grant npm scope ownership. Log in using `npm login`, then publish the reviewed archive with `npm publish pushport-web-sdk-0.0.1.tgz --access public`. Complete npm's 2FA prompt yourself. Never commit `.npmrc` or access tokens.
+The account must own the `pushport` scope; a matching domain or GitHub organization alone does not grant npm scope ownership. Log in using `npm login`, then publish the reviewed archive with `npm publish pushport-web-sdk-0.0.2.tgz --access public`. Complete npm's 2FA prompt yourself. Never commit `.npmrc` or access tokens.
 
 ## Subsequent releases with GitHub OIDC
 

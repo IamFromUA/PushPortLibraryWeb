@@ -1,6 +1,6 @@
 import { PushPortError, type WebSubscription } from "./types.js";
 
-export const SDK_VERSION = "0.0.1";
+export const SDK_VERSION = "0.0.2";
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const localHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
 

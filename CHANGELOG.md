@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.0.2 — 2026-10-14
+
+- Durable batched notification diagnostics with stable event IDs, bounded outbox and retry acknowledgement.
+- Consent gating, foreground sessions/usage, direct and estimated influenced returns.
+- Confirmed user profiles, verified External ID login/logout, tags, explicit contact/location data and custom events.
+- Automatic project image limits (5 MiB by default); safe text fallback when image processing fails.
+- Backward-compatible installation identity and native SDK/bridge methods.
+- Independent notification picture and icon downloads; sampled to 2000/256 pixels where browser decoding/canvas is available. Browser notification API results do not prove a human view.
+
+
 ## 0.0.1 — Unreleased
 
 - Web Push lifecycle, same-origin service worker, durable IndexedDB state and structured diagnostics.

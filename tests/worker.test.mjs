@@ -21,7 +21,7 @@ beforeEach(async () => {
     registration: { async showNotification(title, options) { shown.push({ title, options }); } },
     clients: { async matchAll() { return []; }, async openWindow(url) { opened.push(url); } },
   };
-  context = vm.createContext({ self: worker, indexedDB, URL, Intl, Uint8Array, TextDecoder, AbortController, setTimeout, clearTimeout,
+  context = vm.createContext({ self: worker, indexedDB, URL, Intl, Uint8Array, TextDecoder, AbortController, Blob, setTimeout, clearTimeout,
     fetch: async () => { if (!online) throw new Error('offline'); return new Response(null, { status: 204 }); },
     atob, btoa, crypto });
   vm.runInContext(code, context);
@@ -54,4 +54,20 @@ test('offline click still navigates and durably queues the opened event', async 
   assert.equal(closed, true);
   assert.deepEqual(opened, ['https://site.example.test/inbox']);
   assert.deepEqual((await readState()).pendingEvents, [messageId]);
+});
+
+test('picture and icon attach independently, keep the same tag and update silently', async () => {
+  context.fetch = async url => {
+    if (url.includes('broken')) return new Response(null, { status: 503 });
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jgfsAAAAASUVORK5CYII=', 'base64');
+    return new Response(png, { headers: { 'Content-Type': 'image/png' } });
+  };
+  await push({ pushport_app_id: appId, pushport_message_id: messageId, title: 'Hello', image_url: 'https://images.example.test/broken', large_icon: 'https://images.example.test/icon.png' });
+  assert.equal(shown.length, 2); assert.equal(shown[1].options.tag, shown[0].options.tag);
+  assert.match(shown[1].options.icon, /^data:image\/png;base64,/); assert.equal(shown[1].options.image, undefined);
+  assert.equal(shown[1].options.silent, true);
+  const events = (await readState()).telemetryEvents;
+  assert.ok(events.some(event => event.type === 'image_failed' && event.httpStatus === 503));
+  assert.ok(events.some(event => event.type === 'image_attached'));
+  await push({ pushport_app_id: appId, pushport_message_id: messageId, title: 'Duplicate' }); assert.equal(shown.length, 2);
 });

@@ -1,3 +1,7 @@
+# Version 0.0.2 verification
+
+The release checks cover state upgrade without duplicate installations, bounded retry/acknowledgement diagnostics, consent, user operations, image policy and native integration. Apple/iOS and KMP/Swift linking must pass macOS CI before tagging/publishing. See the matching GitHub Actions run for the release commit. Portable Swift checks are not native iOS verification. Real provider delivery remains a separate integration check.
+
 # Preparation checks — 2026-09-13
 
 Passed: strict TypeScript checks for DOM and service worker separately; 14 tests for public client lifecycle, transactional IndexedDB updates, worker payload/click handling, offline outbox, URL/locale/key validation and safe diagnostics. Tests use synthetic data and isolated browser API substitutes.
