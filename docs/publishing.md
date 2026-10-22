@@ -1,6 +1,6 @@
 # Publishing
 
-Repository: https://github.com/IamFromUA/PushPortLibraryWeb. Package: `@pushport/web-sdk`, initial version `0.0.2`, Apache-2.0. Versions and release tags are immutable.
+Repository: https://github.com/IamFromUA/PushPortLibraryWeb. Package: `@pushport/web-sdk`, current version `0.0.2`, Apache-2.0. Versions and release tags are immutable.
 
 ## Verification and release archive
 

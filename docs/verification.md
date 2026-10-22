@@ -1,8 +1,14 @@
-# Version 0.0.2 verification
+# Version 0.0.2 verification — 2026-10-14
 
-The release checks cover state upgrade without duplicate installations, bounded retry/acknowledgement diagnostics, consent, user operations, image policy and native integration. Apple/iOS and KMP/Swift linking must pass macOS CI before tagging/publishing. See the matching GitHub Actions run for the release commit. Portable Swift checks are not native iOS verification. Real provider delivery remains a separate integration check.
+Strict DOM and worker TypeScript checks, 20 synthetic tests and an independent ESM/CommonJS/TypeScript/service-worker consumer passed. Version 0.0.2 is distributed as the public GitHub npm archive; it is not published in the npm registry. Update both the page package and copied same-origin worker. These checks do not prove provider delivery or human display.
 
-# Preparation checks — 2026-09-13
+Evidence: [successful release verification](https://github.com/IamFromUA/PushPortLibraryWeb/actions/runs/38540355252). The run commit matches the immutable public 0.0.2 tag.
+
+## Historical 0.0.1 verification
+
+The following results describe the initial September release, not the current test counts or publication status.
+
+### Preparation checks — 2026-09-13
 
 Passed: strict TypeScript checks for DOM and service worker separately; 14 tests for public client lifecycle, transactional IndexedDB updates, worker payload/click handling, offline outbox, URL/locale/key validation and safe diagnostics. Tests use synthetic data and isolated browser API substitutes.
 

@@ -10,10 +10,10 @@
 - Independent notification picture and icon downloads; sampled to 2000/256 pixels where browser decoding/canvas is available. Browser notification API results do not prove a human view.
 
 
-## 0.0.1 — Unreleased
+## 0.0.1 — 2026-09-13
 
 - Web Push lifecycle, same-origin service worker, durable IndexedDB state and structured diagnostics.
 - Immutable application binding, independent permission/subscription state and locale synchronization.
 - Documentation, examples, Apache-2.0 notices, verification workflow and publication guide.
 
-No package has been published or tagged by this preparation task. See README for platform/server readiness and checks still requiring macOS or real devices.
+Initial public release. Distributed as a public GitHub npm archive; npm registry publication remains separate. See the versioned verification guide for the checks and device/provider limits.
