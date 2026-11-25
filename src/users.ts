@@ -11,6 +11,11 @@ export function validatePatch(values: Record<string, string | null>, maximum = 5
 export async function enqueueUser(operation: Omit<UserOperation, "revision">): Promise<void> {
   await updateState(state => {
     if (!state || !collectionAllowed(state)) throw new PushPortError("consent_required", "Initialize PushPort and provide consent first");
+    const first = state.userOperations?.[0];
+    if (operation.kind === "login" && operation.identityToken && first?.kind === "login" && first.externalId === operation.externalId) {
+      first.identityToken = operation.identityToken;
+      return state;
+    }
     const switching = ["login", "logout"].includes(operation.kind);
     const pending = switching ? [] : state.userOperations ?? [];
     if (pending.length >= 100) throw new PushPortError("queue_full", "Wait for pending user changes to synchronize");
@@ -26,15 +31,30 @@ export async function flushUsers(): Promise<PushPortUser | null> {
   for (let count = 0; count < 100; count++) {
     state = await readState(); if (!state || !collectionAllowed(state)) return null;
     const operation = state.userOperations?.[0]; if (!operation) break;
-    const profile = await request(state, `/installations/${state.installationId}/user`, "PUT", operation, state.secret) as PushPortUser;
+    const needsProof = () => new PushPortError("identity_token_required", "Call login for the same External ID with a fresh identity token");
+    if (operation.kind === "login" && !operation.identityToken) throw needsProof();
+    let profile: PushPortUser;
+    try {
+      profile = await request(state, `/installations/${state.installationId}/user`, "PUT", operation, state.secret) as PushPortUser;
+    } catch (error) {
+      if (operation.kind !== "login" || !(error instanceof PushPortError) || error.httpStatus !== 401) throw error;
+      const latest = await updateState(current => {
+        if (!current) throw error;
+        const head = current.userOperations?.[0];
+        if (head?.revision === operation.revision && head.identityToken === operation.identityToken) delete head.identityToken;
+        return current;
+      });
+      if (latest.userOperations?.[0]?.revision === operation.revision && !latest.userOperations[0].identityToken) throw needsProof();
+      continue;
+    }
     if (!profile || typeof profile.userId !== "string" || !profile.properties) throw new PushPortError("invalid_response", "Invalid user profile");
-    await updateState(latest => { if (!latest) throw new PushPortError("storage_cleared", "Browser storage was cleared"); latest.userOperations = (latest.userOperations ?? []).filter(item => item.revision !== operation.revision); if (!latest.userOperations.some(item => ["login", "logout"].includes(item.kind))) latest.user = profile; return latest; });
+    await updateState(latest => { if (!latest) throw new PushPortError("storage_cleared", "Browser storage was cleared"); if (!collectionAllowed(latest) || !latest.userOperations?.some(item => item.revision === operation.revision)) return latest; latest.userOperations = (latest.userOperations ?? []).filter(item => item.revision !== operation.revision); if (!latest.userOperations.some(item => ["login", "logout"].includes(item.kind))) latest.user = profile; return latest; });
   }
   state = await readState(); if (!state) return null;
   if (!state.user) {
     const profile = await request(state, `/installations/${state.installationId}/user`, "GET", undefined, state.secret) as PushPortUser;
     if (!profile?.properties || typeof profile.userId !== "string") throw new PushPortError("invalid_response", "Invalid user profile");
-    await updateState(latest => { if (!latest) throw new PushPortError("storage_cleared", "Browser storage was cleared"); if (!latest.userOperations?.length) latest.user = profile; return latest; });
+    await updateState(latest => { if (!latest) throw new PushPortError("storage_cleared", "Browser storage was cleared"); if (collectionAllowed(latest) && !latest.userOperations?.length) latest.user = profile; return latest; });
   }
   return (await readState())?.user ?? null;
 }

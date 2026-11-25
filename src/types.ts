@@ -15,7 +15,15 @@ export interface PushPortOptions {
 }
 
 /** Local state; a token/subscription does not prove delivery. Contains no credentials. */
+export interface AppProfile {
+  id: string;
+  name: string;
+  value: string;
+}
+
 export interface PushPortStatus {
+  appProfile: AppProfile;
+  profileChecked: boolean;
   configured: boolean;
   supported: boolean;
   installationId: string | null;
@@ -55,6 +63,7 @@ export interface PlatformSnapshot {
 }
 
 export interface StoredState {
+  appProfile?: AppProfile;
   schema: 1;
   appId: string;
   serverUrl: string;
@@ -84,6 +93,10 @@ export interface StoredState {
   user?: PushPortUser | null;
   userRevision?: number;
   userOperations?: UserOperation[];
+}
+
+export function collectionAllowed(state: StoredState): boolean {
+  return !state.consentRequired || state.consentGiven === true;
 }
 
 export interface UsageSnapshot { firstSessionAt: number | null; lastSessionAt: number | null; sessionCount: number; totalUsageMillis: number }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 — 2026-11-25
+
+- Read the active application profile at startup with a bounded wait and cached fallback.
+
+- Open public HTTPS campaign links across origins and count the browser handoff separately from the notification click. Ignore bundled Android icon names in Web notifications. Update the site's copy of `pushport-sw.js` with the SDK.
+
 ## 0.0.2 — 2026-10-14
 
 - Durable batched notification diagnostics with stable event IDs, bounded outbox and retry acknowledgement.

@@ -59,12 +59,12 @@ test('transport omits cookies and forbids redirects; retries preserve events', a
   await transport.flushEvents();
   assert.deepEqual((await storage.readState()).pendingEvents, []);
 });
-test('unsafe config and click URLs are rejected or constrained to the website', () => {
+test('click targets accept public HTTPS destinations and relative site routes', () => {
   assert.throws(() => validation.serverUrl('https://user:secret@host.test'));
   assert.throws(() => validation.serverUrl('http://host.test', true));
   assert.equal(validation.serverUrl('http://localhost:15793/', true), 'http://localhost:15793');
-  assert.equal(validation.clickTarget('javascript:alert(1)', 'https://example.test'), 'https://example.test/');
-  assert.equal(validation.clickTarget('https://phishing.test', 'https://example.test'), 'https://example.test/');
+  assert.equal(validation.clickTarget('javascript:alert(1)', 'https://example.test'), null);
+  assert.equal(validation.clickTarget('https://phishing.test', 'https://example.test'), null);
   assert.equal(validation.clickTarget('/inbox', 'https://example.test'), 'https://example.test/inbox');
 });
 test('locales canonicalize and malformed VAPID keys fail before subscribe', () => {

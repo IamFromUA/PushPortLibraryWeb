@@ -2,17 +2,17 @@
 
 Native Web Push registration, locale/subscription synchronization and a service worker for notifications. TypeScript, framework independent, no runtime dependencies. ESM, CommonJS and a plain browser bundle are built from the same sources. SSR-safe import.
 
-**Version 0.0.2 is available as a public GitHub release archive.** npm registry publication is pending. The production backend supports VAPID provisioning and native Web Push delivery. Version 0.0.1 was tested in Chrome on Windows on 2026-09-13: registration, locale sync, unsubscribe/resubscribe, direct delivery and a scheduled localized campaign passed. Notification-click analytics and other browsers require separate verification.
+**Version 0.1.1 is available as a public GitHub release archive.** npm registry publication is pending. The production backend supports VAPID provisioning and native Web Push delivery. Version 0.0.1 was tested in Chrome on Windows on 2026-09-13: registration, locale sync, unsubscribe/resubscribe, direct delivery and a scheduled localized campaign passed. Notification-click analytics and other browsers require separate verification.
 
 ## Install and initialize
 
-From the GitHub 0.0.2 release archive:
+From the GitHub 0.1.1 release archive:
 
 ```sh
-npm install https://github.com/IamFromUA/PushPortLibraryWeb/releases/download/0.0.2/pushport-web-sdk-0.0.2.tgz
+npm install https://github.com/IamFromUA/PushPortLibraryWeb/releases/download/0.1.1/pushport-web-sdk-0.1.1.tgz
 ```
 
-After npm publication: `npm install @pushport/web-sdk@0.0.2`. Both methods install the same regular dependency and TypeScript declarations. Source builds use `npm ci && npm pack`.
+After npm publication: `npm install @pushport/web-sdk@0.1.1`. Both methods install the same regular dependency and TypeScript declarations. Source builds use `npm ci && npm pack`.
 
 Copy `node_modules/@pushport/web-sdk/dist/pushport-sw.js` to your site's **public/pushport-sw.js** so it is served as JavaScript from your own origin.
 
@@ -48,14 +48,30 @@ For a plain `<script>`, serve `dist/pushport.js` and use `PushPortWeb.PushPort.i
 
 The example expects `<button id="enable-push">Enable notifications</button>` and `<p id="push-status" role="status"></p>`. Build/deploy the copied worker with your application; do not fetch executable workers from an unrelated CDN at runtime.
 
+## Application profiles
+
+Available in Web SDK 0.1.1.
+
+An operator must allow profiles for the project's owner in **Users**. The owner or a manager can then enable **App profiles** at project creation or in Settings. Both switches default to off. Each project has up to three named profiles including `default`. IDs survive renames. The optional `value` is public and can identify a screen or a content variant.
+
+```js
+const profile = await PushPort.resolveAppProfile({ appId });
+if (profile.value === 'catalog') openCatalog(); else openHome();
+```
+
+The startup helper works before notification initialization. Pass the same server and consent options to `initialize`. An initialized client also exposes `client.status().appProfile`.
+
+The startup check shares the normal configuration request. When the network is slow, the resolver waits up to about one second and uses the last confirmed profile, or `default` on the first offline launch. Turning either switch off selects the default on the next successful check. The app chooses its own screen and can ignore unknown values. Reading the profile needs no notification permission.
+
 ## Behavior and requirements
 
 - HTTPS secure context and browser support for Service Worker, PushManager, Notifications and IndexedDB. Explicit localhost HTTP is supported for the API URL only with `allowInsecureLocalhost: true`; the browser still enforces its secure-context rules.
 - Configure the exact website origin in PushPort. CORS permits only that origin, without cookies. A random installation secret authorizes SDK requests; the public App ID is not a user session.
 - One application/server binding per origin. Data is in IndexedDB, shared transactionally between tabs and the worker. Clearing site data creates a new installation. No fingerprint or cross-site identifier is collected.
+- In the development SDK an offline start preserves the installation. Keep the returned client and observe `status().syncError`; synchronization resumes on the browser's online event or an explicit `sync()`. An unsupported browser or conflicting worker is reported during initialization.
 - Browser permission and subscription preference are independent. Denial must be changed through browser settings. Re-enabling the preference does not silently display a permission prompt.
 - Locale, languages, timezone, permission and subscription changes synchronize on visibility, online and language events; explicit overrides are supported. Some background subscription changes can be reconciled by the worker. Remaining updates resume when a page opens.
-- Clicks stay within the configured website origin. Unknown provider payloads are ignored. Notification images must use HTTPS and are rendered only by browsers supporting them.
+- Version 0.0.2 opens links within the website origin. The 0.1.1 worker also opens explicit public HTTPS campaign URLs, including another domain. Relative paths resolve on the registered site. A missing or rejected URL opens the home page. Only an explicit valid link adds a link-result event. A resolved cross-origin navigation records the browser handoff even when the browser hides the destination window from the worker. Unknown provider payloads are ignored. Notification images must use HTTPS and are rendered only by browsers supporting them.
 - The worker retains the legacy opened-event queue (100) and, in 0.0.2, notification diagnostics use a separate durable outbox (1000 events, batches of 100). A click opens/focuses the page without waiting for analytics. Browsers/OS decide when notifications can run; no permanent background execution is promised.
 - Safari on iOS/iPadOS requires a supported installed Home Screen web app for Web Push. Browser feature detection and real-device testing remain necessary. [WebKit documentation](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/).
 
@@ -69,4 +85,4 @@ The tests use synthetic subscriptions and fake IndexedDB/transport. They do not 
 
 Apache-2.0 · Oleh Yurkov · support@pushport.dev
 
-See [diagnostics, consent, images and user profiles](docs/diagnostics.md) for version 0.0.2.
+See [diagnostics, consent, images and user profiles](docs/diagnostics.md) for version 0.1.1.

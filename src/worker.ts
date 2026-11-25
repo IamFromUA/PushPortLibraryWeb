@@ -3,6 +3,7 @@ import { queueOpened, readState, updateState } from "./storage.js";
 import { flushEvents, request } from "./transport.js";
 import { applicationKey, clickTarget, serializeSubscription, UUID } from "./validation.js";
 import { appendEvent, collectionAllowed, flushTelemetry, record } from "./telemetry.js";
+import { ensureSubscription } from "./subscription.js";
 import { downloadImage, imageLimit } from "./images.js";
 import { PushPortError } from "./types.js";
 declare const self: ServiceWorkerGlobalScope;
@@ -44,7 +45,11 @@ self.addEventListener("push", event => {
     let attached = false;
     for (const [field, target] of [["image_url", "image"], ["large_icon", "icon"]] as const) {
       if (typeof data[field] !== "string") continue;
+      // Older servers can send a bundled Android drawable name in large_icon.
+      if (target === "icon" && /^[a-z][a-z0-9_]{0,79}$/.test(data[field])) continue;
       try {
+        const current = await readState();
+        if (!current?.subscribed || !collectionAllowed(current)) break;
         const downloaded = await downloadImage(data[field], imageLimit(data.image_limit_bytes ?? captured.imageLimitBytes), target === "icon");
         options[target] = downloaded.url; attached = true;
         await record("image_downloaded", messageId, { reason: target === "icon" ? "large_icon" : "picture", durationMillis: downloaded.duration, sizeBytes: downloaded.size, httpStatus: downloaded.status });
@@ -71,16 +76,20 @@ self.addEventListener("notificationclick", event => {
   event.waitUntil((async () => {
     const state = await readState();
     if (!state || data.pushport_app_id !== state.appId) return;
-    if (collectionAllowed(state)) await updateState(latest => { if (!latest) throw new Error("Missing state"); latest.lastClicked = { messageId: data.pushport_message_id as string, at: Date.now() }; appendEvent(latest, "clicked", data.pushport_message_id as string); return latest; });
+    if (collectionAllowed(state)) await updateState(latest => { if (!latest) throw new Error("Missing state"); if (!collectionAllowed(latest)) return latest; latest.lastClicked = { messageId: data.pushport_message_id as string, at: Date.now() }; appendEvent(latest, "clicked", data.pushport_message_id as string); return latest; });
     // Navigation does not wait for analytics/network success.
     const navigate = async () => {
-      const url = clickTarget(data.click_url, state.origin);
-      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      const existing = windows.find(client => client.url === url);
+      const target = clickTarget(data.click_url, state.origin);
+      const url = target ?? new URL("/", state.origin).href;
       try {
+        const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        const existing = windows.find(client => client.url === url);
         const launched = existing ? await existing.focus() : await self.clients.openWindow(url);
-        await record(launched ? "link_opened" : "link_failed", data.pushport_message_id as string, launched ? {} : { reason: "no_handler" });
-      } catch { await record("link_failed", data.pushport_message_id as string, { reason: "no_handler" }); }
+        // Cross-origin navigation resolves with null even when the browser opens the URL.
+        if (!target) return;
+        const accepted = Boolean(launched) || new URL(url).origin !== state.origin;
+        await record(accepted ? "link_opened" : "link_failed", data.pushport_message_id as string, accepted ? {} : { reason: "no_handler" });
+      } catch { if (target) await record("link_failed", data.pushport_message_id as string, { reason: "no_handler" }); }
     };
     await Promise.allSettled([navigate(), collectionAllowed(state) ? queueOpened(state.appId, data.pushport_message_id as string).then(flushEvents) : Promise.resolve()]);
     await flushTelemetry().catch(() => {});
@@ -93,14 +102,16 @@ self.addEventListener("pushsubscriptionchange", event => {
     const state = await readState();
     if (state?.subscribed && collectionAllowed(state) && state.vapidPublicKey && state.snapshot) {
       try {
-        const subscription = await self.registration.pushManager.getSubscription() ??
-          await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: applicationKey(state.vapidPublicKey) });
+        const subscription = await ensureSubscription(self.registration, applicationKey(state.vapidPublicKey));
+        if (!subscription) return;
         const updated = await updateState(latest => {
           if (!latest?.snapshot) throw new Error("Missing PushPort state");
+          if (!latest.subscribed || !collectionAllowed(latest)) return latest;
           latest.snapshot = { ...latest.snapshot, revision: ++latest.revision, pushSubscribed: latest.subscribed,
             webSubscription: serializeSubscription(subscription) };
           return latest;
         });
+        if (!updated.subscribed || !collectionAllowed(updated)) return;
         await request(updated, `/installations/${updated.installationId}`, "PUT", updated.snapshot, updated.secret);
       } catch { /* Durable state is retried by page sync; don't rotate installation identity. */ }
     }

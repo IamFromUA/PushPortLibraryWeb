@@ -1,8 +1,13 @@
-import { PushPortError, type StoredState } from "./types.js";
+import { collectionAllowed, PushPortError, type StoredState } from "./types.js";
 import { readState, updateState } from "./storage.js";
 
 export async function request(state: Pick<StoredState, "serverUrl" | "appId">, path: string,
   method = "GET", body?: unknown, secret?: string): Promise<unknown> {
+  const current = await readState();
+  if (!current || current.appId !== state.appId || current.serverUrl !== state.serverUrl) {
+    throw new PushPortError("storage_cleared", "The PushPort installation has changed");
+  }
+  if (!collectionAllowed(current)) throw new PushPortError("consent_required", "Provide consent first");
   const headers: Record<string, string> = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (secret) headers.Authorization = `Bearer ${secret}`;

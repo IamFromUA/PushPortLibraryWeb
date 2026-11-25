@@ -1,5 +1,5 @@
 import { base64url } from "./validation.js";
-import { PushPortError, type StoredState } from "./types.js";
+import { collectionAllowed, PushPortError, type StoredState } from "./types.js";
 
 const DATABASE = "pushport-web-v1";
 const STORE = "state";
@@ -62,7 +62,7 @@ export function bind(appId: string, serverUrl: string, origin: string): Promise<
 export async function queueOpened(appId: string, messageId: string): Promise<void> {
   await updateState(state => {
     if (!state || state.appId !== appId) throw new PushPortError("not_initialized", "PushPort is not initialized for this application");
-    if (!state.pendingEvents.includes(messageId)) state.pendingEvents = [...state.pendingEvents, messageId].slice(-100);
+    if (collectionAllowed(state) && !state.pendingEvents.includes(messageId)) state.pendingEvents = [...state.pendingEvents, messageId].slice(-100);
     return state;
   });
 }

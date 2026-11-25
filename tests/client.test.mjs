@@ -67,6 +67,41 @@ test('initialize does not prompt, permission registers, opt-out removes subscrip
   assert.equal(JSON.stringify(restarted.status()).includes('synthetic'), false);
   assert.equal(JSON.stringify(restarted).includes('secret'), false);
 });
+test('startup profile shares the config request with initialize and survives offline startup', async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  const profile = { id: 'shop', name: 'Магазин', value: 'catalog' };
+  globalThis.fetch = async (url, options) => {
+    if (options.method !== 'GET') return original(url, options);
+    calls++;
+    return Response.json({appId, platform: 'WEB', protocolVersion: 1, vapidPublicKey: encoded, appProfile: profile});
+  };
+  assert.deepEqual(await PushPort.resolveAppProfile({appId}), profile);
+  const client = await initialize();
+  assert.equal(calls, 1);
+  assert.deepEqual(client.status().appProfile, profile);
+  client.dispose();
+  delete window.PushManager;
+  globalThis.fetch = async () => { throw new TypeError('offline'); };
+  assert.deepEqual(await PushPort.resolveAppProfile({appId}), profile);
+  globalThis.fetch = original;
+  assert.equal((await PushPort.resolveAppProfile({appId})).id, 'default');
+  assert.equal(promptCount, 0);
+});
+
+test('startup profile uses the default while consent is pending or configuration times out', async () => {
+  let calls = 0;
+  let finish;
+  globalThis.fetch = async () => { calls++; return new Promise(done => { finish = done; }); };
+  assert.equal((await PushPort.resolveAppProfile({appId, consentRequired:true})).id, 'default');
+  assert.equal(calls, 0);
+  assert.equal((await PushPort.resolveAppProfile({appId, consentGiven:true})).id, 'default');
+  assert.equal(calls, 1);
+  finish(Response.json({appId, platform:'WEB', protocolVersion:1}));
+  await new Promise(done => setTimeout(done, 20));
+  assert.equal(promptCount, 0);
+});
+
 test('locale override and reset preserve the browser language list with ordered revisions', async () => {
   const client = await initialize();
   await client.setLocale('uk-UA');
@@ -86,6 +121,113 @@ test('failed native unsubscribe still sends the durable opt-out to the server', 
   assert.equal(records.at(-1).body.pushSubscribed, false);
   assert.equal(client.status().subscribed, false);
 });
+test('a cold offline start keeps its installation and recovers on the online event', async () => {
+  const onlineFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new TypeError('offline'); };
+  const client = await initialize();
+  const identity = client.status().installationId;
+  assert.equal(client.status().syncError, 'network_error');
+  const done = new Promise(resolve => client.onStatusChange(status => { if (status.lastSyncedAt && !status.syncError) resolve(); }));
+  globalThis.fetch = onlineFetch;
+  window.dispatchEvent(new Event('online'));
+  await done;
+  assert.equal(client.status().installationId, identity);
+  assert.equal(records.length, 1);
+});
+
+test('first worker installation can recover after an offline launch', async () => {
+  const registration = await navigator.serviceWorker.getRegistration();
+  navigator.serviceWorker.getRegistration = async () => undefined;
+  navigator.onLine = false;
+  navigator.serviceWorker.register = async () => { throw new TypeError('fetch failed'); };
+  const client = await initialize();
+  const id = client.status().installationId;
+  assert.equal(client.status().syncError, 'network_error');
+  assert.equal(records.length, 0);
+  navigator.onLine = true;
+  navigator.serviceWorker.register = async () => registration;
+  await client.sync();
+  assert.equal(client.status().syncError, null);
+  assert.equal(client.status().installationId, id);
+});
+
+test('consent pending prevents browser subscription even with permission already granted', async () => {
+  permission = 'granted';
+  const client = await PushPort.initialize({ appId, consentRequired: true }); clients.push(client);
+  await client.setSubscribed(true);
+  assert.equal(subscription, null);
+  assert.equal(records.length, 0);
+});
+
+test('revocation in a second tab during configuration prevents subscription and registration', async () => {
+  const first = await PushPort.initialize({ appId, consentRequired: true, consentGiven: true }); clients.push(first);
+  const second = await initialize();
+  const count = records.length;
+  const originalFetch = globalThis.fetch;
+  const started = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  globalThis.fetch = async (...args) => { started.resolve(); await release.promise; return originalFetch(...args); };
+  permission = 'granted';
+  const pending = first.sync();
+  await started.promise;
+  await second.setConsentGiven(false);
+  release.resolve();
+  await pending;
+  assert.equal(subscription, null);
+  assert.equal(records.length, count);
+  await assert.rejects(first.requestPermission(), { code: 'consent_required' });
+});
+
+test('revocation while the browser creates a subscription removes the newly issued token', async () => {
+  const first = await PushPort.initialize({ appId, consentRequired: true, consentGiven: true }); clients.push(first);
+  const second = await initialize();
+  const manager = (await navigator.serviceWorker.getRegistration()).pushManager;
+  const subscribe = manager.subscribe.bind(manager);
+  const started = Promise.withResolvers(), release = Promise.withResolvers();
+  manager.subscribe = async options => { started.resolve(); await release.promise; return subscribe(options); };
+  const count = records.length;
+  permission = 'granted';
+  const pending = first.sync();
+  await started.promise;
+  await second.setConsentGiven(false);
+  release.resolve();
+  await pending;
+  assert.equal(subscription, null);
+  assert.equal(records.length, count);
+});
+
+test('expired login pauses profile edits across restart while telemetry is acknowledged', async () => {
+  const mutations = [], events = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    if (url.includes('/config?')) return Response.json({ appId, platform: 'WEB', protocolVersion: 1,
+      vapidPublicKey: encoded, userProfileVersion: 1, telemetryVersion: 1 });
+    if (url.endsWith('/telemetry')) {
+      const batch = JSON.parse(options.body).events; events.push(...batch);
+      return Response.json({ acceptedIds: batch.map(event => event.id) });
+    }
+    if (url.endsWith('/user')) {
+      const op = options.body ? JSON.parse(options.body) : {};
+      if (options.body) mutations.push(op);
+      if (op.identityToken === 'a'.repeat(43)) return new Response(null, { status: 401 });
+      return Response.json({ userId: appId, revision: op.revision ?? 0, properties: { tags: op.tags ?? {} } });
+    }
+    return originalFetch(url, options);
+  };
+  const first = await initialize();
+  await assert.rejects(first.login('buyer', 'a'.repeat(43)), { code: 'identity_token_required' });
+  await assert.rejects(first.setTags({ buyer: '1' }), { code: 'identity_token_required' });
+  first.dispose();
+  const second = await initialize();
+  assert.equal(second.status().syncError, 'identity_token_required');
+  assert.equal(mutations.length, 1);
+  assert.ok(events.some(event => event.type === 'session_ended'));
+  await second.login('buyer', 'b'.repeat(43));
+  assert.deepEqual(mutations.map(op => [op.kind, op.revision]), [['login', 1], ['login', 1], ['tags', 2]]);
+  assert.equal(second.user().properties.tags.buyer, '1');
+  assert.equal(second.status().syncError, null);
+});
+
 test('foreign service worker is never replaced by initialization', async () => {
   navigator.serviceWorker.getRegistration = async () => ({ scope: location.origin + '/', active: { scriptURL: location.origin + '/host-owned.js' } });
   await assert.rejects(initialize(), /existing service worker/);

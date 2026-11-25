@@ -1,6 +1,6 @@
 import { PushPortError, type WebSubscription } from "./types.js";
 
-export const SDK_VERSION = "0.0.2";
+export const SDK_VERSION = "0.1.1";
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const localHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
@@ -52,11 +52,18 @@ export function serializeSubscription(subscription: PushSubscription): WebSubscr
     keys: { p256dh: base64url(new Uint8Array(p256dh)), auth: base64url(new Uint8Array(auth)) } };
 }
 
-/** Notification clicks stay on the registered website; reject javascript/data/external URLs. */
-export function clickTarget(value: unknown, origin: string): string {
+/** Keep relative links on the site and allow explicit public HTTPS campaign destinations. */
+export function clickTarget(value: unknown, origin: string): string | null {
   try {
-    const url = new URL(typeof value === "string" ? value : "/", origin);
-    if (url.origin === origin && ["https:", "http:"].includes(url.protocol) && !url.username && !url.password) return url.href;
-  } catch { /* Use the safe root fallback. */ }
-  return new URL("/", origin).href;
+    if (typeof value !== "string" || !value.trim() || value.length > 1000) return null;
+    const url = new URL(value, origin);
+    if (!url.username && !url.password) {
+      if (url.origin === origin && ["https:", "http:"].includes(url.protocol)) return url.href;
+      const host = url.hostname.toLowerCase();
+      if (/^https:\/\//i.test(value) && url.protocol === "https:" && !url.port &&
+          host.includes(".") && /[a-z]/.test(host) && !host.includes(":") &&
+          !/\.(?:localhost|local|internal|test)\.?$/.test(host)) return url.href;
+    }
+  } catch { /* An invalid target opens the website home. */ }
+  return null;
 }

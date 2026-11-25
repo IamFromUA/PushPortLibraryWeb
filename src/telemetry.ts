@@ -1,8 +1,8 @@
 import { updateState, readState } from "./storage.js";
 import { request } from "./transport.js";
-import { PushPortError, type StoredState, type NotificationEvent } from "./types.js";
+import { collectionAllowed, PushPortError, type StoredState, type NotificationEvent } from "./types.js";
 
-export const collectionAllowed = (state: StoredState): boolean => !state.consentRequired || state.consentGiven === true;
+export { collectionAllowed } from "./types.js";
 export function appendEvent(state: StoredState, type: string, messageId?: string, details: Partial<NotificationEvent> = {}): void {
   if (!collectionAllowed(state)) return;
   const queue = state.telemetryEvents ??= [];
